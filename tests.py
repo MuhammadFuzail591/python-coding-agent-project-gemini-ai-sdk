@@ -1,23 +1,16 @@
 
-from functions.get_files_info import get_files_info
-
+from functions.get_file_content import get_file_content
 
 def main():
-   working_dir = "calculator"
-   root_contents = get_files_info(working_dir)
-   print(root_contents)
 
-   key_contents = get_files_info(working_dir,"key")
-   print(key_contents)
+   main_res = get_file_content("calculator","main.py")
+   pkg_res = get_file_content("calculator","pkg/calculator.py")
+   bin_res = get_file_content("calculator","/bin/cat")
+   does_res = get_file_content("calculator","pkg/does_not_exist.py")
 
-   pkg_contents = get_files_info(working_dir, "pkg")
-   print(pkg_contents)
-
-   bin_contents = get_files_info(working_dir, "/bin")
-   print(bin_contents)
-
-   parent_contents = get_files_info(working_dir, "../")
-   print(parent_contents)
-
+   print(main_res)
+   print(pkg_res)
+   print(bin_res)
+   print(does_res)
 
 main()
