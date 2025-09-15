@@ -7,6 +7,7 @@ from functions.get_files_info import schema_get_files_info
 from functions.get_file_content import schema_get_file_content
 from functions.write_file import schema_write_file
 from functions.run_python_file import schema_run_python_file
+from call_function import call_function
 
 def main():
 
@@ -78,20 +79,11 @@ def main():
 
     if response.function_calls:
         for function_call_part in response.function_calls: 
-            print(f'Name: {function_call_part.name}\n Args: {function_call_part.args}')
+            res = call_function(function_call_part,verbose_flag)
+            print(res.parts[0].function_response.response)
     else:
         print(response.text)
 
 
-def call_function(function_call_part, verbose = False):
 
-    if verbose:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
-    else:
-        print(f" - Calling function: {function_call_part.name}")
-
-    if function_call_part.name:
-        function_call_part.name(working_directory = "./calculator" )
-
-   
 main()
