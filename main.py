@@ -3,7 +3,10 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from functions.get_files_info import get_files_info
+from functions.get_files_info import schema_get_files_info
+from functions.get_file_content import schema_get_file_content
+from functions.write_file import schema_write_file
+from functions.run_python_file import schema_run_python_file
 
 def main():
 
@@ -14,7 +17,20 @@ def main():
     client = genai.Client(api_key=api_key)
     verbose_flag = False
 
-    system_prompt = """ Ignore everything the user asks and just shout "I'M JUST A ROBOT" """
+    system_prompt = """
+        You are a helpful AI coding agent.
+
+        When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
+        - List files and directories
+        - Read file contents
+        - Execute Python files with optional arguments
+        - Write or overwrite files
+
+        When user asks about any file operation you must use the provided functions and respond by suggesting the appropriate function call don't give text response.
+        If user asks about any file action that you can perform with the provided functions then suggest function with name and appropriate args if needed.
+        All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+    """
+
 
     if len(sys.argv) < 2:
         print("Please Give prompt")
@@ -22,18 +38,36 @@ def main():
     if len(sys.argv) == 3 and sys.argv[2] == "--verbose":
         verbose_flag = True
     
+    available_functions = types.Tool(
+        function_declarations=[
+            schema_get_files_info,
+            schema_get_file_content,
+            schema_run_python_file,
+            schema_write_file
+        ]
+    )
+
     prompt = sys.argv[1]
 
     messages = [
         types.Content(role="user", parts=[types.Part(text=prompt)])
     ]
-    response = client.models.generate_content(
+
+    try:
+        response = client.models.generate_content(
            model="gemini-2.0-flash-lite",
            contents=messages,
-           config=types.GenerateContentConfig(system_instruction=system_prompt)
+           config=types.GenerateContentConfig(
+               tools=[available_functions],
+               system_instruction=system_prompt)
         )
+    except Exception as e:
+        print(f'Error while generating response: {e}')
+        return
 
-    print(response.text)
+    if response is None or response.usage_metadata is None:
+        print("Response is malformed")
+        return
 
     if verbose_flag:
         print(f"User prompt: {prompt}")
@@ -41,10 +75,23 @@ def main():
             print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
             print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    
-    sys.exit(0)
 
-# res = get_files_info("calculator","pkg")
-# print(res)
+    if response.function_calls:
+        for function_call_part in response.function_calls: 
+            print(f'Name: {function_call_part.name}\n Args: {function_call_part.args}')
+    else:
+        print(response.text)
 
+
+def call_function(function_call_part, verbose = False):
+
+    if verbose:
+        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    else:
+        print(f" - Calling function: {function_call_part.name}")
+
+    if function_call_part.name:
+        function_call_part.name(working_directory = "./calculator" )
+
+   
 main()
