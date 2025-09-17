@@ -54,36 +54,50 @@ def main():
         types.Content(role="user", parts=[types.Part(text=prompt)])
     ]
 
-    try:
+
+    max_iters = 20
+    for i in range(0,max_iters):
+
         response = client.models.generate_content(
-           model="gemini-2.0-flash-lite",
-           contents=messages,
-           config=types.GenerateContentConfig(
-               tools=[available_functions],
-               system_instruction=system_prompt)
+        model="gemini-2.0-flash-lite",
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions],
+            system_instruction=system_prompt)
         )
-    except Exception as e:
-        print(f'Error while generating response: {e}')
-        return
-
-    if response is None or response.usage_metadata is None:
-        print("Response is malformed")
-        return
-
-    if verbose_flag:
-        print(f"User prompt: {prompt}")
-        if response and response.usage_metadata:
-            print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-            print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+        
+        for candidate in response.candidates:
+            messages.append(candidate.content)
 
 
-    if response.function_calls:
-        for function_call_part in response.function_calls: 
-            res = call_function(function_call_part,verbose_flag)
-            print(res.parts[0].function_response.response)
-    else:
-        print(response.text)
+        if response is None or response.usage_metadata is None:
+            print("Response is malformed")
+            return
 
+        if verbose_flag:
+            print(f"User prompt: {prompt}")
+            if response and response.usage_metadata:
+                print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+                print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+        if response.candidates:
+            for candidate in response.candidates:
+                if candidate is None or candidate.content is None:
+                    continue
+                messages.append(candidate.content)
+
+
+        if response.function_calls:
+            for function_call_part in response.function_calls: 
+                res = call_function(function_call_part,verbose_flag)
+                # print(res.parts[0].function_response.response)
+                messages.append(res)
+        else:
+            print(response.text)
+            print(messages)
+            return
+            
+        
 
 
 main()
